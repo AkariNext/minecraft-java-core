@@ -7,47 +7,121 @@ import os from 'os';
 import nodeFetch from 'node-fetch';
 import path from 'path';
 
+interface IFile {
+    path: string;
+    executable: boolean;
+    sha1: string;
+    size: number;
+    url: string;
+    type: string;
+}
+
+interface IJavaOptions {
+    path: string;
+}
+
+export interface IJavaVersionJson {
+    gamecore: IGamecore;
+    linux: IGamecore;
+    "linux-i386": IGamecore;
+    "mac-os": IGamecore;
+    "mac-os-arm64": IGamecore;
+    "windows-arm64": IGamecore;
+    "windows-x64": IGamecore;
+    "windows-x86": IGamecore;
+}
+
+export interface IGamecore {
+    "java-runtime-alpha": IJavaRuntimeAlpha[];
+    "java-runtime-beta": IJavaRuntimeAlpha[];
+    "java-runtime-gamma": IJavaRuntimeAlpha[];
+    "jre-legacy": IJavaRuntimeAlpha[];
+    "minecraft-java-exe": IJavaRuntimeAlpha[];
+}
+
+export interface IJavaRuntimeAlpha {
+    availability: IAvailability;
+    manifest: IManifest;
+    version: IVersion;
+}
+
+export interface IAvailability {
+    group: number;
+    progress: number;
+}
+
+export interface IManifest {
+    sha1: string;
+    size: number;
+    url: string;
+}
+
+export interface IVersion {
+    name: string;
+    released: Date;
+}
+
+
 export default class java {
-    options: any;
-    constructor(options: any) {
+    options: IJavaOptions;
+    constructor(options: IJavaOptions) {
         this.options = options;
     }
 
     async GetJsonJava(jsonversion: any) {
-        let version: any;
-        let files: any = [];
-        let javaVersionsJson = await nodeFetch("https://launchermeta.mojang.com/v1/products/java-runtime/2ec0cc96c44e5a76b9c8b7c39df7210883d12871/all.json").then(res => res.json())
+        let version: string;
+        let files: IFile[] = [];
+        let javaVersionsJson: IJavaVersionJson = await nodeFetch("https://launchermeta.mojang.com/v1/products/java-runtime/2ec0cc96c44e5a76b9c8b7c39df7210883d12871/all.json").then(res => res.json())
+        let minecraftJavaManifest: [string, IMinecraftVersionManifestFile][]  // indexの0にあたる場所にはファイルの形式が入ってる
 
-        if (!jsonversion.javaVersion) jsonversion = "jre-legacy"
+        
+
+        if (!jsonversion.javaVersion) {
+            if (os.platform() == "win32") {
+                let arch = { x64: "windows-x64", ia32: "windows-x86" }
+                version = `jre-${javaVersionsJson[`${arch[os.arch()]}`][jsonversion][0].version.name}`
+                minecraftJavaManifest = Object.entries<IMinecraftVersionManifestFile>((await nodeFetch(javaVersionsJson[`${arch[os.arch()]}`][jsonversion][0].manifest.url).then(res => res.json())).files)
+            } else if (os.platform() == "darwin") {
+                let arch = { x64: "mac-os", arm64: "mac-os-arm64" }
+                version = `jre-${javaVersionsJson[`${arch[os.arch()]}`][jsonversion][0].version.name}`
+                minecraftJavaManifest = Object.entries<IMinecraftVersionManifestFile>((await nodeFetch(javaVersionsJson[`${arch[os.arch()]}`][jsonversion][0].manifest.url).then(res => res.json())).files)
+            } else if (os.platform() == "linux") {
+                let arch = { x64: "linux", ia32: "linux-i386" }
+                version = `jre-${javaVersionsJson[`${arch[os.arch()]}`][jsonversion][0].version.name}`
+                minecraftJavaManifest = Object.entries<IMinecraftVersionManifestFile>((await nodeFetch(javaVersionsJson[`${arch[os.arch()]}`][jsonversion][0].manifest.url).then(res => res.json())).files)
+            } else return console.log("OS not supported");
+        }
         else jsonversion = jsonversion.javaVersion.component
 
         if (os.platform() == "win32") {
             let arch = { x64: "windows-x64", ia32: "windows-x86" }
             version = `jre-${javaVersionsJson[`${arch[os.arch()]}`][jsonversion][0].version.name}`
-            javaVersionsJson = Object.entries((await nodeFetch(javaVersionsJson[`${arch[os.arch()]}`][jsonversion][0].manifest.url).then(res => res.json())).files)
+            minecraftJavaManifest = Object.entries<IMinecraftVersionManifestFile>((await nodeFetch(javaVersionsJson[`${arch[os.arch()]}`][jsonversion][0].manifest.url).then(res => res.json())).files)
         } else if (os.platform() == "darwin") {
             let arch = { x64: "mac-os", arm64: "mac-os-arm64" }
             version = `jre-${javaVersionsJson[`${arch[os.arch()]}`][jsonversion][0].version.name}`
-            javaVersionsJson = Object.entries((await nodeFetch(javaVersionsJson[`${arch[os.arch()]}`][jsonversion][0].manifest.url).then(res => res.json())).files)
+            minecraftJavaManifest = Object.entries<IMinecraftVersionManifestFile>((await nodeFetch(javaVersionsJson[`${arch[os.arch()]}`][jsonversion][0].manifest.url).then(res => res.json())).files)
         } else if (os.platform() == "linux") {
             let arch = { x64: "linux", ia32: "linux-i386" }
             version = `jre-${javaVersionsJson[`${arch[os.arch()]}`][jsonversion][0].version.name}`
-            javaVersionsJson = Object.entries((await nodeFetch(javaVersionsJson[`${arch[os.arch()]}`][jsonversion][0].manifest.url).then(res => res.json())).files)
+            minecraftJavaManifest = Object.entries<IMinecraftVersionManifestFile>((await nodeFetch(javaVersionsJson[`${arch[os.arch()]}`][jsonversion][0].manifest.url).then(res => res.json())).files)
         } else return console.log("OS not supported");
 
-        let java = javaVersionsJson.find(file => file[0].endsWith(process.platform == "win32" ? "bin/javaw.exe" : "bin/java"))[0];
+        let java = minecraftJavaManifest.find(file => file[0].endsWith(process.platform == "win32" ? "bin/javaw.exe" : "bin/java"))[0];
         let toDelete = java.replace(process.platform == "win32" ? "bin/javaw.exe" : "bin/java", "");
 
-        for (let [path, info] of javaVersionsJson) {
+        for (let [path, info] of minecraftJavaManifest) {
             if (info.type == "directory") continue;
-            if (!info.downloads) continue;
-            let file: any = {};
-            file.path = `runtime/${version}/${path.replace(toDelete, "")}`;
-            file.executable = info.executable;
-            file.sha1 = info.downloads.raw.sha1;
-            file.size = info.downloads.raw.size;
-            file.url = info.downloads.raw.url;
-            file.type = "Java";
+            if (!info.downloads) continue;  // IMinecraftVersionManifestFile
+            let file: IFile = {
+                path: `runtime/${version}/${path.replace(toDelete, "")}`,
+                executable: info.executable,
+                sha1: info.downloads.raw.sha1,
+                size: info.downloads.raw.size,
+                url: info.downloads.raw.url,
+                type: "Java",
+            };
+
             files.push(file);
         }
         return {
