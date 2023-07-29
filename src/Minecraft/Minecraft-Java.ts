@@ -69,10 +69,8 @@ export default class java {
     }
 
     async GetJsonJava(jsonversion: any) {
-        let version: string;
         let files: IFile[] = [];
         let javaVersionsJson: IJavaVersionJson = await nodeFetch("https://launchermeta.mojang.com/v1/products/java-runtime/2ec0cc96c44e5a76b9c8b7c39df7210883d12871/all.json").then(res => res.json())
-        let minecraftJavaManifest: [string, IMinecraftVersionManifestFile][]  // indexの0にあたる場所にはファイルの形式が入ってる        
 
         const platformArchitecture = {
             win32: { x64: "windows-x64", ia32: "windows-x86" },
@@ -84,11 +82,13 @@ export default class java {
         const useArchitecture = platformArchitecture[platform];
         if (Object.keys(platformArchitecture).includes(platform) === false) return console.log("OS not supported");
 
-        let url = javaVersionsJson[useArchitecture][jsonversion][0].manifest.url
-        minecraftJavaManifest = Object.entries<IMinecraftVersionManifestFile>((await nodeFetch(url).then(res => res.json())).files)
+        const url = javaVersionsJson[useArchitecture][jsonversion][0].manifest.url
+        const minecraftJavaManifest = Object.entries<IMinecraftVersionManifestFile>((await nodeFetch(url).then(res => res.json())).files)
+        
+        const version = `jre-${javaVersionsJson[platform][jsonversion][0].version.name}`
 
-        let java = minecraftJavaManifest.find(file => file[0].endsWith(process.platform == "win32" ? "bin/javaw.exe" : "bin/java"))[0];
-        let toDelete = java.replace(process.platform == "win32" ? "bin/javaw.exe" : "bin/java", "");
+        let java = minecraftJavaManifest.find(file => file[0].endsWith(platform == "win32" ? "bin/javaw.exe" : "bin/java"))[0];
+        let toDelete = java.replace(platform == "win32" ? "bin/javaw.exe" : "bin/java", "");
 
         for (let [path, info] of minecraftJavaManifest) {
             if (info.type == "directory") continue;
