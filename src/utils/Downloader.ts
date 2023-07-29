@@ -7,11 +7,11 @@ import fs from 'fs';
 import nodeFetch from 'node-fetch';
 import { EventEmitter } from 'events';
 
-interface downloadOptions {
-    url: string,
+export interface downloadOptions {
+    url?: string,
     path: string,
-    length: number,
-    folder: string
+    folder?: string
+    type?: string
 }
 
 export default class download {
@@ -23,7 +23,7 @@ export default class download {
         this.emit = EventEmitter.prototype.emit;
     }
 
-    async downloadFileMultiple(files: downloadOptions, size: number, limit: number = 1, timeout: number = 10000) {
+    async downloadFileMultiple(files: downloadOptions[], size: number, limit: number = 1, timeout: number = 10000) {
         if (limit > files.length) limit = files.length;
         let completed = 0;
         let downloaded = 0;
@@ -53,7 +53,7 @@ export default class download {
                 let file = files[queued];
                 queued++;
 
-                if (!fs.existsSync(file.foler)) fs.mkdirSync(file.folder, { recursive: true, mode: 0o777 });
+                if (!fs.existsSync(file.folder)) fs.mkdirSync(file.folder, { recursive: true, mode: 0o777 });
                 const writer: any = fs.createWriteStream(file.path, { flags: 'w', mode: 0o777 });
 
                 try {

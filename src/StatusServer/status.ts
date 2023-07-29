@@ -6,7 +6,7 @@
 import net from 'net'
 import createBuffer from './buffer.js';
 
-function ping(server: any, port: any, callback: any, timeout: any, protocol: any = '') {
+function ping(server: string, port: number, callback: any, timeout: number, protocol: string = '') {
     let start: any = new Date();
     let socket = net.connect({
         port: port,

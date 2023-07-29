@@ -6,23 +6,6 @@
 import nodeFetch from 'node-fetch';
 import { ILauncherOptions } from '../Launch';
 
-interface IJsonVersion {
-    id: string
-    type: 'release' | 'snapshot'
-    url: string
-    time: string
-    sha1: string
-    complianceLevel: number
-}
-
-export interface IVersionJson {
-    latest: {
-        release: string
-        snapshot: string
-    }
-    versions: IJsonVersion[]
-    
-}
 
 export default class Json {
     options: ILauncherOptions;
@@ -34,7 +17,7 @@ export default class Json {
     async GetInfoVersion() {
         let version: string = this.options.version;
         const res = await nodeFetch(`https://launchermeta.mojang.com/mc/game/version_manifest_v2.json?_t=${new Date().toISOString()}`);
-        const data: IVersionJson = await res.json();
+        let data: IVersionManifest = await res.json();
 
         if (version == 'latest_release' || version == 'r' || version == 'lr') {
             version = data.latest.release;
@@ -43,16 +26,15 @@ export default class Json {
             version = data.latest.snapshot;
         }
 
-        const InfoVersion = data.versions.find(v => v.id === version);
+        let InfoVersion = data.versions.find(v => v.id === version);
 
-        if (!data) return {
-            error: true,
-            message: `Minecraft ${version} is not found.`
-        };
+        if (!data) {
+            throw new Error('Minecraft version not found.');
+        } 
 
         return {
-            InfoVersion,
-            json: data,
+            InfoVersion: data,
+            json: await nodeFetch(InfoVersion.url).then(res => res.json() as Promise<IVersionData>),
             version: version
         };
     }

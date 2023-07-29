@@ -22,9 +22,48 @@ import { isold } from './utils/Index.js';
 
 import Downloader from './utils/Downloader.js';
 
+export interface IAuth {
+    [key: string]: Partial<any>
+}
+
+export interface ILoader {
+    type: 'forge'
+    build: 'latest' | string
+    enable: boolean
+}
+
+export interface IScreen {
+    width: number | null
+    height: number | null
+    fullscreen: boolean
+}
+
+export interface IMemory {
+    min: number | string
+    max: number | string
+}
+
+export interface ILauncherOptions {
+    url: string | null
+    authenticator: IAuth //fixme
+    timeout: number
+    path: string
+    version: 'latest_release' | 'latest_snapshot' | string
+    instance: string //fixme
+    detached: boolean
+    downloadFileMultiple: number
+    loader: ILoader
+    verify: boolean
+    ignored: Partial<string>[]
+    JVM_ARGS: Partial<string>[]
+    GAME_ARGS: Partial<string>[]
+    javaPath: Partial<string>
+    screen: IScreen
+    memory: IMemory
+}
 
 export default class Launch {
-    options: any;
+    options: ILauncherOptions;
     on: any;
     emit: any;
 
@@ -33,7 +72,7 @@ export default class Launch {
         this.emit = EventEmitter.prototype.emit;
     }
 
-    async Launch(opt: any) {
+    async Launch(opt: ILauncherOptions) {
         this.options = {
             url: opt?.url || null,
             authenticator: opt?.authenticator || null,
@@ -72,22 +111,21 @@ export default class Launch {
         if (!this.options.authenticator) return this.emit("error", { error: "Authenticator not found" });
         if (this.options.downloadFileMultiple < 1) this.options.downloadFileMultiple = 1
         if (this.options.downloadFileMultiple > 20) this.options.downloadFileMultiple = 20
-        if (!this.options.loader.enable) this.options.loader = false;
+        if (!this.options.loader.enable) this.options.loader.enable = false;
         this.start();
     }
 
     async start() {
-        let data: any = await this.DownloadGame();
-        if (data.error) return this.emit('error', data);
+        let data = await this.DownloadGame();
         let { minecraftJson, minecraftLoader, minecraftVersion, minecraftJava } = data;
 
-        let minecraftArguments: any = await new argumentsMinecraft(this.options).GetArguments(minecraftJson, minecraftLoader);
-        if (minecraftArguments.error) return this.emit('error', minecraftArguments);
+        let minecraftArguments = await new argumentsMinecraft(this.options).GetArguments(minecraftJson, minecraftLoader);
+        // if (minecraftArguments.error) return this.emit('error', minecraftArguments);
 
-        let loaderArguments: any = await new loaderMinecraft(this.options).GetArguments(minecraftLoader, minecraftVersion);
-        if (loaderArguments.error) return this.emit('error', loaderArguments);
+        let loaderArguments = await new loaderMinecraft(this.options).GetArguments(minecraftLoader, minecraftVersion);
+        // if (loaderArguments.error) return this.emit('error', loaderArguments);
 
-        let Arguments: any = [
+        let Arguments = [
             ...minecraftArguments.jvm,
             ...loaderArguments.jvm,
             ...minecraftArguments.classpath,
@@ -95,7 +133,7 @@ export default class Launch {
             ...minecraftArguments.game
         ]
 
-        let java: any = this.options.javaPath ? this.options.javaPath : minecraftJava.path;
+        let java = this.options.javaPath ? this.options.javaPath : minecraftJava.path;
         let logs = this.options.instance ? `${this.options.path}/instances/${this.options.instance}` : this.options.path;
         if (!fs.existsSync(logs)) fs.mkdirSync(logs, { recursive: true });
 
@@ -110,18 +148,16 @@ export default class Launch {
     async DownloadGame() {
         let InfoVersion = await new jsonMinecraft(this.options).GetInfoVersion();
         let loaderJson: any = null;
-        if (InfoVersion.error) return InfoVersion
         let { json, version } = InfoVersion;
 
         let libraries = new librariesMinecraft(this.options)
+        let gameLibraries = await libraries.Getlibraries(json);
+        let gameAssetsOther = await libraries.GetAssetsOthers(this.options.url);
+        let gameAssets = await new assetsMinecraft(this.options).GetAssets(json);
+        let gameJava = this.options.javaPath ? { files: [], path: '' } as {files: IFile[], path: string} : await new javaMinecraft(this.options).GetJsonJava(json);
 
-        let gameLibraries: any = await libraries.Getlibraries(json);
-        let gameAssetsOther: any = await libraries.GetAssetsOthers(this.options.url);
-        let gameAssets: any = await new assetsMinecraft(this.options).GetAssets(json);
-        let gameJava: any = this.options.javaPath ? { files: [] } : await new javaMinecraft(this.options).GetJsonJava(json);
-
-        let bundle: any = [...gameLibraries, ...gameAssetsOther, ...gameAssets, ...gameJava.files]
-        let filesList: any = await new bundleMinecraft(this.options).checkBundle(bundle);
+        let bundle = [...gameLibraries, ...gameAssetsOther, ...gameAssets, ...gameJava.files]
+        let filesList = await new bundleMinecraft(this.options).checkBundle(bundle);
 
         if (filesList.length > 0) {
             let downloader = new Downloader();
@@ -175,13 +211,16 @@ export default class Launch {
         if (this.options.verify) await libraries.checkFiles(bundle);
 
         let natives = await libraries.natives(bundle);
-        if (natives.length === 0) json.nativesList = false;
-        else json.nativesList = true;
 
-        if (isold(json)) new assetsMinecraft(this.options).copyAssets(json);
+        let new_json: IversionAndNativesListData = {
+            ...json,
+            nativesList: natives.length === 0 ? false : true
+        }
+
+        if (isold(new_json)) new assetsMinecraft(this.options).copyAssets(new_json);
 
         return {
-            minecraftJson: json,
+            minecraftJson: new_json,
             minecraftLoader: loaderJson,
             minecraftVersion: version,
             minecraftJava: gameJava

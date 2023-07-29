@@ -7,14 +7,7 @@ import os from 'os';
 import nodeFetch from 'node-fetch';
 import path from 'path';
 
-interface IFile {
-    path: string;
-    executable: boolean;
-    sha1: string;
-    size: number;
-    url: string;
-    type: string;
-}
+
 
 interface IJavaOptions {
     path: string;
@@ -77,15 +70,14 @@ export default class java {
             darwin: { x64: "mac-os", arm64: "mac-os-arm64" },
             linux: { x64: "linux", ia32: "linux-i386" }
         }
-        jsonversion = jsonversion.javaVersion ? 'jre-legacy' : jsonversion.javaVersion.component
+        jsonversion = jsonversion.javaVersion ? jsonversion.javaVersion.component : 'jre-legacy'
         const platform = os.platform();
-        const useArchitecture = platformArchitecture[platform];
-        if (Object.keys(platformArchitecture).includes(platform) === false) return console.log("OS not supported");
-
+        const useArchitecture = platformArchitecture[platform][os.arch()];
+        if (Object.keys(platformArchitecture).includes(platform) === false) throw new Error("OS not supported");
         const url = javaVersionsJson[useArchitecture][jsonversion][0].manifest.url
         const minecraftJavaManifest = Object.entries<IMinecraftVersionManifestFile>((await nodeFetch(url).then(res => res.json())).files)
         
-        const version = `jre-${javaVersionsJson[platform][jsonversion][0].version.name}`
+        const version = `jre-${javaVersionsJson[useArchitecture][jsonversion][0].version.name}`
 
         let java = minecraftJavaManifest.find(file => file[0].endsWith(platform == "win32" ? "bin/javaw.exe" : "bin/java"))[0];
         let toDelete = java.replace(platform == "win32" ? "bin/javaw.exe" : "bin/java", "");

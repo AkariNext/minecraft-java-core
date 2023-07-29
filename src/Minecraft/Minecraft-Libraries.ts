@@ -7,24 +7,25 @@ import os from 'os';
 import fs from 'fs';
 import AdmZip from 'adm-zip';
 import nodeFetch from 'node-fetch';
+import { ILauncherOptions } from '../Launch';
 
 let MojangLib = { win32: "windows", darwin: "osx", linux: "linux" };
 let Arch = { x32: "32", x64: "64", arm: "32", arm64: "64" };
 
 export default class Libraries {
-    json: any;
-    options: any;
-    constructor(options: any) {
+    json: IVersionData;
+    options: ILauncherOptions;
+    constructor(options: ILauncherOptions) {
         this.options = options;
     }
 
-    async Getlibraries(json: any) {
+    async Getlibraries(json: IVersionData) {
         this.json = json;
-        let libraries = [];
+        let libraries: TLibrary[] = [];
 
         for (let lib of this.json.libraries) {
-            let artifact: any;
-            let type = "Libraries";
+            let artifact: ILibrarieFile;
+            let type: "Native" | "Libraries" = "Libraries";
 
             if (lib.natives) {
                 let classifiers = lib.downloads.classifiers;
@@ -66,11 +67,17 @@ export default class Libraries {
         return libraries;
     }
 
-    async GetAssetsOthers(url: any) {
+    async GetAssetsOthers(url: string) {
         if (!url) return [];
         let data = await nodeFetch(url).then(res => res.json());
 
-        let assets = [];
+        let assets: {
+            sha1?: string
+            size?: number
+            type: string
+            path: string
+            url: string
+        }[] = [];
         for (let asset of data) {
             if (!asset.path) continue
             let path = asset.path;

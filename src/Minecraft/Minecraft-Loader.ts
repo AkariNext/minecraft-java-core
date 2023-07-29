@@ -4,20 +4,21 @@
  */
 
 import { EventEmitter } from 'events';
+import { ILauncherOptions } from '../Launch';
 const loaderDownloader = require('minecraft-loader');
 
 
 export default class MinecraftLoader {
-    options: any;
+    options: ILauncherOptions;
     on: any;
     emit: any;
-    constructor(options: any) {
+    constructor(options: ILauncherOptions) {
         this.options = options;
         this.on = EventEmitter.prototype.on;
         this.emit = EventEmitter.prototype.emit;
     }
 
-    async GetLoader(version: any, javaPath: any) {
+    async GetLoader(version: string, javaPath: string) {
         let loader = new loaderDownloader({
             path: `${this.options.path}/loader/${this.options.loader.type}`,
             timeout: this.options.timeout,

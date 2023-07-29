@@ -6,6 +6,9 @@
 import nodeFetch from 'node-fetch';
 import crypto from 'crypto';
 
+function instanceOfProfile(object: any): object is IProfile {
+    return 'id' in object;
+}
 
 export default class Microsoft {
     client_id: string;
@@ -64,13 +67,13 @@ export default class Microsoft {
             },
             body: `grant_type=refresh_token&client_id=${this.client_id}&refresh_token=${acc.refresh_token}`
         }).then(res => res.json()).catch(err => { return { error: err } });;
-        if (oauth2.error) {
-            oauth2.errorType = "oauth2";
-            return oauth2
-        };
+        if (oauth2.error) throw new Error("oauth2 error while refreshing the account.")
 
         if (timeStamp < (acc?.meta?.access_token_expires_in - 7200)) {
             let profile = await this.getProfile(acc)
+
+            if (!instanceOfProfile(profile)) throw new Error("Error while refreshing the account.")
+
             acc.refresh_token = oauth2.refresh_token
             acc.profile = {
                 skins: profile.skins,
@@ -96,10 +99,7 @@ export default class Microsoft {
             }),
             headers: { "Content-Type": "application/json", Accept: "application/json" },
         }).then(res => res.json()).catch(err => { return { error: err } });;
-        if (xbl.error) {
-            xbl.errorType = "xbl";
-            return xbl
-        }
+        if (xbl.error) throw new Error("Error while getting the xbl.")
 
         let xsts = await nodeFetch("https://xsts.auth.xboxlive.com/xsts/authorize", {
             method: "POST",
@@ -115,10 +115,7 @@ export default class Microsoft {
                 TokenType: "JWT"
             })
         }).then(res => res.json());
-        if (xsts.error) {
-            xsts.errorType = "xsts";
-            return xsts
-        }
+        if (xsts.error) throw new Error("Error while getting the xsts.")
 
         let xboxAccount = await nodeFetch("https://xsts.auth.xboxlive.com/xsts/authorize", {
             method: "POST",
@@ -134,10 +131,7 @@ export default class Microsoft {
                 TokenType: "JWT"
             })
         }).then(res => res.json()).catch(err => { return { error: err } });
-        if (xsts.error) {
-            xsts.errorType = "xboxAccount";
-            return xsts
-        }
+        if (xsts.error) throw new Error("Error while getting the xboxAccount.")
 
         let mcLogin = await nodeFetch("https://api.minecraftservices.com/authentication/login_with_xbox", {
             method: "POST",
@@ -146,16 +140,10 @@ export default class Microsoft {
             },
             body: JSON.stringify({ "identityToken": `XBL3.0 x=${xbl.DisplayClaims.xui[0].uhs};${xsts.Token}` })
         }).then(res => res.json()).catch(err => { return { error: err } });
-        if (mcLogin.error) {
-            mcLogin.errorType = "mcLogin";
-            return mcLogin
-        }
+        if (mcLogin.error) throw new Error("Error while getting the mcLogin.")
 
         let profile = await this.getProfile(mcLogin);
-        if (profile.error) {
-            profile.errorType = "profile";
-            return profile
-        }
+        if (!instanceOfProfile(profile)) throw new Error("Error while getting the profile.")
 
         return {
             access_token: mcLogin.access_token,
@@ -168,7 +156,7 @@ export default class Microsoft {
                 xuid: xboxAccount.DisplayClaims.xui[0].xid,
                 type: "Xbox",
                 access_token_expires_in: mcLogin.expires_in + Math.floor(Date.now() / 1000),
-                demo: profile.error ? true : false
+                demo: profile.demo ? true : false
             },
             profile: {
                 skins: profile.skins,
@@ -178,16 +166,16 @@ export default class Microsoft {
     }
 
     async getProfile(mcLogin: any) {
-        let profile = await nodeFetch("https://api.minecraftservices.com/minecraft/profile", {
+        let profile: IProfile | { error: any } = await nodeFetch("https://api.minecraftservices.com/minecraft/profile", {
             method: "GET",
             headers: {
                 'Authorization': `Bearer ${mcLogin.access_token}`
             }
-        }).then(res => res.json()).catch(err => { return { error: err } });;
-        if (profile.error) return profile
+        }).then(res => res.json() as Promise<IProfile>).catch((err) => { return { error: err } });
+        if (!instanceOfProfile(profile)) return profile;
 
-        let skins = profile.skins;
-        let capes = profile.capes;
+        let skins: ICustomSkin[] = profile.skins;
+        let capes: ICustomCape[] = profile.capes;
 
         for (let skin of skins) {
             skin.base64 = `data:image/png;base64,${await getBass64(skin.url)}`

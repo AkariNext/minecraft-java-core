@@ -6,22 +6,42 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { ILauncherOptions } from '../Launch';
+
+type TBundle = {
+    path: string;
+    type: "CFILE";
+    content: string;
+} | {
+    sha1?: string;
+    size?: number;
+    type: string;
+    path: string;
+    url: string;
+}
+
+function isCFILE(file: TBundle): file is { path: string; type: "CFILE"; content: string; } {
+    if (file.type !== "CFILE") return false
+    return true
+}
 
 export default class MinecraftBundle {
-    options: any;
-    constructor(options: any) {
+    options: ILauncherOptions;
+    constructor(options: ILauncherOptions) {
         this.options = options;
     }
 
-    async checkBundle(bundle: any) {
-        let todownload = [];
+    async checkBundle(bundle: ({folder?:string} & TBundle)[]) {
+        let todownload: ({
+            folder?: string;
+        } & TBundle)[] = [];
 
         for (let file of bundle) {
             if (!file.path) continue;
             file.path = path.resolve(this.options.path, file.path).replace(/\\/g, "/");
             file.folder = file.path.split("/").slice(0, -1).join("/");
 
-            if (file.type == "CFILE") {
+            if (isCFILE(file)) {
                 if (!fs.existsSync(file.folder)) fs.mkdirSync(file.folder, { recursive: true, mode: 0o777 });
                 fs.writeFileSync(file.path, file.content, { encoding: "utf8", mode: 0o755 });
                 continue;

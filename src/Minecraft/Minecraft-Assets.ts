@@ -5,18 +5,29 @@
 
 import nodeFetch from 'node-fetch';
 import fs from 'fs';
+import { ILauncherOptions } from '../Launch';
 
 export default class MinecraftAssets {
-    assetIndex: any;
-    options: any;
-    constructor(options: any) {
+    assetIndex: IAssetIndex;
+    options: ILauncherOptions;
+    constructor(options: ILauncherOptions) {
         this.options = options;
     }
 
-    async GetAssets(json: any) {
+    async GetAssets(json: IVersionData) {
         this.assetIndex = json.assetIndex;
 
-        let assets = [];
+        let assets: ({
+            sha1: string,
+            size: number,
+            path: string,
+            type: "Assets",
+            url: string,
+        }|{
+            type: "CFILE",
+            path: string,
+            content: string
+        })[] = [];
         let data = await nodeFetch(this.assetIndex.url).then(res => res.json());
 
         assets.push({
@@ -39,7 +50,7 @@ export default class MinecraftAssets {
         return assets
     }
 
-    copyAssets(json: any) {
+    copyAssets(json: IVersionData) {
         let legacyDirectory = `${this.options.path}/resources`;
         let pathAssets = `${this.options.path}/assets/indexes/${json.assets}.json`;
         if (!fs.existsSync(pathAssets)) return;

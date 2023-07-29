@@ -3,14 +3,15 @@
  * @license CC-BY-NC 4.0 - https://creativecommons.org/licenses/by-nc/4.0/
  */
 
+import { IAuth, ILauncherOptions } from '../Launch.js';
 import { getPathLibraries, isold } from '../utils/Index.js';
 
 let MojangLib = { win32: "windows", darwin: "osx", linux: "linux" };
 
 export default class MinecraftArguments {
-    options: any;
-    authenticator: any;
-    constructor(options: any) {
+    options: ILauncherOptions;
+    authenticator: IAuth;
+    constructor(options: ILauncherOptions) {
         this.options = options;
         this.authenticator = options.authenticator;
     }
@@ -106,7 +107,7 @@ export default class MinecraftArguments {
     }
 
     async GetClassPath(json: any, loaderJson: any) {
-        let classPath: any = []
+        let classPath: string[] = []
         let libraries: any = json.libraries;
 
         if (loaderJson?.libraries) libraries = loaderJson.libraries.concat(libraries);
