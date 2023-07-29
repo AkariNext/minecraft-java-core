@@ -72,40 +72,20 @@ export default class java {
         let version: string;
         let files: IFile[] = [];
         let javaVersionsJson: IJavaVersionJson = await nodeFetch("https://launchermeta.mojang.com/v1/products/java-runtime/2ec0cc96c44e5a76b9c8b7c39df7210883d12871/all.json").then(res => res.json())
-        let minecraftJavaManifest: [string, IMinecraftVersionManifestFile][]  // indexの0にあたる場所にはファイルの形式が入ってる
+        let minecraftJavaManifest: [string, IMinecraftVersionManifestFile][]  // indexの0にあたる場所にはファイルの形式が入ってる        
 
-        
-
-        if (!jsonversion.javaVersion) {
-            if (os.platform() == "win32") {
-                let arch = { x64: "windows-x64", ia32: "windows-x86" }
-                version = `jre-${javaVersionsJson[`${arch[os.arch()]}`][jsonversion][0].version.name}`
-                minecraftJavaManifest = Object.entries<IMinecraftVersionManifestFile>((await nodeFetch(javaVersionsJson[`${arch[os.arch()]}`][jsonversion][0].manifest.url).then(res => res.json())).files)
-            } else if (os.platform() == "darwin") {
-                let arch = { x64: "mac-os", arm64: "mac-os-arm64" }
-                version = `jre-${javaVersionsJson[`${arch[os.arch()]}`][jsonversion][0].version.name}`
-                minecraftJavaManifest = Object.entries<IMinecraftVersionManifestFile>((await nodeFetch(javaVersionsJson[`${arch[os.arch()]}`][jsonversion][0].manifest.url).then(res => res.json())).files)
-            } else if (os.platform() == "linux") {
-                let arch = { x64: "linux", ia32: "linux-i386" }
-                version = `jre-${javaVersionsJson[`${arch[os.arch()]}`][jsonversion][0].version.name}`
-                minecraftJavaManifest = Object.entries<IMinecraftVersionManifestFile>((await nodeFetch(javaVersionsJson[`${arch[os.arch()]}`][jsonversion][0].manifest.url).then(res => res.json())).files)
-            } else return console.log("OS not supported");
+        const platformArchitecture = {
+            win32: { x64: "windows-x64", ia32: "windows-x86" },
+            darwin: { x64: "mac-os", arm64: "mac-os-arm64" },
+            linux: { x64: "linux", ia32: "linux-i386" }
         }
-        else jsonversion = jsonversion.javaVersion.component
+        jsonversion = jsonversion.javaVersion ? 'jre-legacy' : jsonversion.javaVersion.component
+        const platform = os.platform();
+        const useArchitecture = platformArchitecture[platform];
+        if (Object.keys(platformArchitecture).includes(platform) === false) return console.log("OS not supported");
 
-        if (os.platform() == "win32") {
-            let arch = { x64: "windows-x64", ia32: "windows-x86" }
-            version = `jre-${javaVersionsJson[`${arch[os.arch()]}`][jsonversion][0].version.name}`
-            minecraftJavaManifest = Object.entries<IMinecraftVersionManifestFile>((await nodeFetch(javaVersionsJson[`${arch[os.arch()]}`][jsonversion][0].manifest.url).then(res => res.json())).files)
-        } else if (os.platform() == "darwin") {
-            let arch = { x64: "mac-os", arm64: "mac-os-arm64" }
-            version = `jre-${javaVersionsJson[`${arch[os.arch()]}`][jsonversion][0].version.name}`
-            minecraftJavaManifest = Object.entries<IMinecraftVersionManifestFile>((await nodeFetch(javaVersionsJson[`${arch[os.arch()]}`][jsonversion][0].manifest.url).then(res => res.json())).files)
-        } else if (os.platform() == "linux") {
-            let arch = { x64: "linux", ia32: "linux-i386" }
-            version = `jre-${javaVersionsJson[`${arch[os.arch()]}`][jsonversion][0].version.name}`
-            minecraftJavaManifest = Object.entries<IMinecraftVersionManifestFile>((await nodeFetch(javaVersionsJson[`${arch[os.arch()]}`][jsonversion][0].manifest.url).then(res => res.json())).files)
-        } else return console.log("OS not supported");
+        let url = javaVersionsJson[useArchitecture][jsonversion][0].manifest.url
+        minecraftJavaManifest = Object.entries<IMinecraftVersionManifestFile>((await nodeFetch(url).then(res => res.json())).files)
 
         let java = minecraftJavaManifest.find(file => file[0].endsWith(process.platform == "win32" ? "bin/javaw.exe" : "bin/java"))[0];
         let toDelete = java.replace(process.platform == "win32" ? "bin/javaw.exe" : "bin/java", "");
