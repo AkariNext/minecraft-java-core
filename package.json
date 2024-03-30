@@ -1,7 +1,8 @@
 {
-    "name": "minecraft-java-core",
+    "name": "@akarinext/minecraft-java-core",
     "version": "3.5.7",
     "types": "./build/Index.d.ts",
+    "private": false,
     "exports": {
         ".": {
             "import": "./build/Index.js",

@@ -27,7 +27,7 @@ let mc
         timeout: 10000,
         path: './.Minecraft',
         instance: 'Hypixel',
-        version: '1.20.1',
+        version: '1.7.10',
         detached: false,
         downloadFileMultiple: 30,
 
@@ -56,8 +56,9 @@ let mc
         javaPath: null,
 
         screen: {
-            width: 1600,
-            height: 900
+            //width: 1600,
+            //height: 900
+            //fullscreen: true
         },
 
         memory: {
@@ -73,7 +74,7 @@ let mc
     });
 
     launch.on('progress', (progress, size, element) => {
-        console.log(`Downloading ${element} ${Math.round((progress / size) * 100)}%`);
+        // console.log(`Downloading ${element} ${Math.round((progress / size) * 100)}%`);
     });
 
     launch.on('check', (progress, size, element) => {
